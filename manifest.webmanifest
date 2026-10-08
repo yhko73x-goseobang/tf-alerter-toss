@@ -1,0 +1,8 @@
+{
+  "name": "30분봉 알리미 (토스증권)",
+  "short_name": "토스알리미",
+  "display": "standalone",
+  "background_color": "#0d1421",
+  "theme_color": "#0d1421",
+  "start_url": "./index.html"
+}

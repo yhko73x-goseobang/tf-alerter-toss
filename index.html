@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0d1421" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="manifest" href="manifest.webmanifest" />
+<title>30분봉 알리미 — 토스증권 Open API (1m 리샘플)</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="appbar one-line">
+  <strong>⏰ 알리미</strong>
+  <div class="cur-sym" id="curSym">—</div>
+  <button class="ind-mini" id="indHead">지표 <i id="indArrow">▼</i></button>
+  <button id="btnFollow" class="active">▶ 추적</button>
+  <span class="conn"><span id="connDot" class="dot sim"></span><span id="connText">토스</span></span>
+</header>
+
+<main class="pages">
+  <!-- 차트 페이지 -->
+  <section class="page active" id="page-chart">
+    <div class="toast" id="alertToast" hidden></div>
+    <div class="ind-bar collapsed" id="indBar">
+      <div class="ind-body">
+        <label><input type="checkbox" id="tglMA" checked /> MA</label>
+        <label><input type="checkbox" id="tglBB" checked /> BB</label>
+        <label><input type="checkbox" id="tglPC" checked /> PC</label>
+        <label><input type="checkbox" id="tglVol" checked /> 거래량</label>
+        <label><input type="checkbox" id="tglATF" checked /> ATF</label>
+        <label><input type="checkbox" id="tglLR" checked /> 회귀</label>
+      </div>
+    </div>
+    <div class="tfbar" id="tfBar">
+      <button data-tf="1m">1분</button>
+      <button data-tf="3m">3분</button>
+      <button data-tf="5m">5분</button>
+      <button data-tf="15m">15분</button>
+      <button data-tf="30m" class="active">30분</button>
+      <button data-tf="1h">1시간</button>
+      <button data-tf="4h">4시간</button>
+      <button data-tf="1D">1일</button>
+    </div>
+    <div class="ohlc" id="ohlc">—</div>
+    <div class="canvas-wrap" id="chartWrap">
+      <canvas id="chart"></canvas>
+      <div class="alert-flash" id="alertFlash" hidden></div>
+    </div>
+    <div class="resizer" id="resizer" title="위아래로 밀어 차트 높이 조절 (더블탭=원래대로)"></div>
+    <div class="statusline"><span id="feedInfo">30m · 대기</span><span id="priceInfo">—</span></div>
+    <div class="sym-strip" id="symStrip"></div>
+  </section>
+
+  <!-- 알리미 페이지 -->
+  <section class="page" id="page-alert">
+    <div class="card">
+      <h3>📝 달성 기록 <span class="mut" id="scanInfo">대기</span></h3>
+      <div class="alert-log" id="alertLog"></div>
+      <div class="row">
+        <button id="btnClearAlerts">기록지우기</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>🔔 조건 (ON/OFF) + 감시 시간대</h3>
+      <div class="row" id="tfWatch">
+        <label class="switch"><input type="checkbox" id="w1m" /> 1분</label>
+        <label class="switch"><input type="checkbox" id="w3m" /> 3분</label>
+        <label class="switch"><input type="checkbox" id="w5m" checked /> 5분</label>
+        <label class="switch"><input type="checkbox" id="w15m" checked /> 15분</label>
+        <label class="switch"><input type="checkbox" id="w30m" /> 30분</label>
+        <label class="switch"><input type="checkbox" id="w1h" /> 1시간</label>
+        <label class="switch"><input type="checkbox" id="w4h" /> 4시간</label>
+        <label class="switch"><input type="checkbox" id="w1D" checked /> 1일</label>
+      </div>
+      <label class="cond"><input type="checkbox" id="cPC" checked /><span><b>PC 하단 터치</b><small>저가 ≤ 돈치안 하단</small></span></label>
+      <label class="cond"><input type="checkbox" id="cBB" checked /><span><b>BB 하단 터치</b><small>저가 ≤ 볼린저 하단</small></span></label>
+      <label class="cond"><input type="checkbox" id="cMA200" checked /><span><b>MA200 터치</b><small>봉 안에 MA200 포함</small></span></label>
+      <label class="cond"><input type="checkbox" id="cLR" checked /><span><b>회귀채널 터치</b><small>봉이 상단·하단선에 닿음</small></span></label>
+      <label class="cond"><input type="checkbox" id="cVol" /><span><b>거래량 급증</b><small>당봉 ≥ 평균×배수</small></span></label>
+    </div>
+    <div class="card">
+      <h3>⚙️ 지표 파라미터 (전 시간대 공통)</h3>
+      <div class="grid2">
+        <label>PC 기간<input id="pPCLen" type="number" value="20" min="5" max="200" /></label>
+        <label>BB 기간<input id="pBBN" type="number" value="20" min="5" max="200" /></label>
+        <label>BB σ<input id="pBBK" type="number" value="2" min="1" max="3" step="0.5" /></label>
+        <label>MA<input id="pMA" type="text" value="20,60,100,200" /></label>
+        <label>거래량 평균<input id="pVolN" type="number" value="20" min="5" max="120" /></label>
+        <label>거래량 배수<input id="pVolK" type="number" value="2" min="1" max="10" step="0.5" /></label>
+      </div>
+      <div class="row">
+        <label>스캔 주기
+          <select id="pScanSec">
+            <option value="30">30초</option>
+            <option value="60" selected>60초 (기본)</option>
+            <option value="120">120초</option>
+          </select>
+        </label>
+        <label class="switch"><input type="checkbox" id="pVibrate" checked /> 진동</label>
+        <label class="switch"><input type="checkbox" id="pNotify" checked /> 알림</label>
+        <label class="switch"><input type="checkbox" id="pWake" checked /> 화면유지</label>
+      </div>
+      <div class="row">
+        <label>알림음
+          <select id="pSnd">
+            <option value="short" selected>부드러운 짧은음</option>
+            <option value="long">약간 긴음</option>
+            <option value="mute">소리 없음</option>
+          </select>
+        </label>
+        <label class="switch"><input type="checkbox" id="pPrio" checked /> 최우선벨</label>
+      </div>
+      <div class="row">
+        <button id="btnTestSound">🔊 테스트음</button>
+        <button id="btnScanNow">🔍 지금 스캔</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 종목 페이지 -->
+  <section class="page" id="page-syms">
+    <button class="goto-set" id="btnGotoSet">⚙️ 설정 가기</button>
+    <div class="card">
+      <h3>📋 종목 (터치 → 차트)</h3>
+      <div class="row">
+        <label class="file-btn">TXT 불러오기<input id="fileInput" type="file" accept=".txt" hidden /></label>
+        <button id="btnSample">예시 넣기</button>
+        <button id="btnExportWatch">목록 다운로드</button>
+        <button id="btnCopyWatch">목록 복사</button>
+      </div>
+      <textarea id="codeBox" rows="2" placeholder="한 줄에 하나 (예: 005930 삼성전자) — 1개면 차트로 점프"></textarea>
+      <div class="row"><button id="btnLoadCodes">목록에 추가</button></div>
+      <div class="row">
+        <button id="btnAlertAll">전체켜기</button>
+        <button id="btnAlertNone">전체끄기</button>
+      </div>
+      <div id="watchlist"></div>
+    </div>
+    <div class="card" id="symsSettings">
+      <h3>📡 데이터 피드 (토스증권 Open API — 서버 경유)</h3>
+      <div class="kw-status" id="yahooStatus">서버 연결 확인 중…</div>
+      <label>서버 주소 (기본: 비워두기 = 같은 서버)
+        <input id="proxyUrl" type="text" placeholder="비워두기 (폰은 http://PC의-LAN-IP:8083 입력)" autocomplete="off" />
+      </label>
+      <div class="row">
+        <label>폴링 간격
+          <select id="pollSec">
+            <option value="15">15초</option>
+            <option value="20" selected>20초 (기본)</option>
+            <option value="30">30초</option>
+            <option value="60">60초</option>
+          </select>
+        </label>
+        <button id="btnPollNow">🔄 지금 받기</button>
+      </div>
+      <p class="hint">토스 캔들은 <code>1분봉·일봉</code>만 제공 → 3m·5m·15m·<b>30m</b>·1h·4h는 1분봉을 모아 앱에서 합성. 심볼은 <code>6자리 KR코드·미국 티커·KOSPI/KOSDAQ</code> 지원 (KOSPI200·COMP·US100·가상자산 미지원). Client Secret은 <code>서버(.env)</code>에만 보관, 토스 허용 IP에는 <code>서버의 외부 IP</code>를 등록 (폰 IP 아님).</p>
+    </div>
+    <div class="card"><h3>📜 로그</h3><div class="log" id="log"></div></div>
+  </section>
+</main>
+
+<nav class="tabbar">
+  <button data-page="page-chart" class="active">📈<small>차트</small></button>
+  <button data-page="page-alert">🔔<small>알리미</small><i id="alertBadge" hidden></i></button>
+  <button data-page="page-syms">📋<small>종목</small></button>
+</nav>
+
+<audio id="alertAudio" src="../alert.wav" preload="auto"></audio>
+<script src="indicators.js"></script>
+<script src="datafeed.js"></script>
+<script src="alerter.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
