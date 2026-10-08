@@ -20,7 +20,8 @@ jobs:
         run: |
           npm init -y
           npm i @capacitor/core @capacitor/cli @capacitor/android
-          mkdir -p www && cp index.html app.js datafeed.js alerter.js indicators.js styles.css manifest.webmanifest www/ 2>/dev/null || true
+          mkdir -p www && cp index.html app.js datafeed.js alerter.js indicators.js styles.css manifest.webmanifest www/
+          ls www
           printf '{"appId":"com.tfalereer.toss","appName":"Toss Alerter","webDir":"www"}' > capacitor.config.json
           npx cap add android
           npx cap sync
