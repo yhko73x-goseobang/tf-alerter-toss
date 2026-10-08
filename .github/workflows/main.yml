@@ -1,0 +1,30 @@
+name: Build Toss Alerter APK (debug)
+on: workflow_dispatch
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Prepare Capacitor app
+        run: |
+          npm init -y
+          npm i @capacitor/core @capacitor/cli @capacitor/android
+          mkdir -p www && cp index.html app.js datafeed.js alerter.js indicators.js styles.css manifest.webmanifest www/ 2>/dev/null || true
+          printf '{"appId":"com.tfalereer.toss","appName":"Toss Alerter","webDir":"www"}' > capacitor.config.json
+          npx cap add android
+          npx cap sync
+      - name: Build debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-toss
+          path: android/app/build/outputs/apk/debug/app-debug.apk
